@@ -103,6 +103,8 @@ func main() {
 
 	wg.Wait()
 	close(results)
+
+	// TODO: last problem here:
 	for {
 
 	}
