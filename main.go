@@ -16,9 +16,10 @@ import (
 var hashPosition = 0
 var comma = ';'
 var comment = '#'
-var concurrency = 500
+var concurrency = 5
 var csvFile = "example.csv"
 var newFile = "new.csv"
+var length = 0
 
 type SyncWriter struct {
 	m      sync.Mutex
@@ -60,14 +61,15 @@ func recalculate(records <-chan []string, wg *sync.WaitGroup, results chan []str
 
 func main() {
 	log.Println("starting...", time.Now())
-	domains := make(chan []string, 1000)
-	results := make(chan []string, 1000)
+	domainsChanel := make(chan []string, 1)
+	resultsChanel := make(chan []string, 1)
 
 	log.Println("filename:", csvFile)
 	csvFile, err := os.Open(csvFile)
 	if err != nil {
 		log.Fatalln("Couldn't open the csv file", err)
 	}
+	log.Println("length:", csvFile)
 
 	log.Println("creating result file...")
 	resultFile, err := os.OpenFile(newFile, os.O_APPEND|os.O_RDWR|os.O_CREATE, 0777)
@@ -90,24 +92,24 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	go read(r, csvFile, domains)
+	go read(r, csvFile, domainsChanel)
 
 	wg := new(sync.WaitGroup)
 	wg.Add(concurrency)
 
 	for i := 0; i < concurrency; i++ {
-		go recalculate(domains, wg, results)
+		go recalculate(domainsChanel, wg, resultsChanel)
 	}
 
-	go write(resultFile, w, results, headers)
+	go write(resultFile, w, resultsChanel, headers)
 
 	wg.Wait()
-	close(results)
+	close(resultsChanel)
 
 	// TODO: last problem here:
-	for {
-
-	}
+	// for {
+	// 	log.Println("le:", length)
+	// }
 }
 
 func read(r *csv.Reader, file *os.File, domains chan []string) {
@@ -125,33 +127,41 @@ func read(r *csv.Reader, file *os.File, domains chan []string) {
 			log.Fatal(err)
 		}
 		log.Println("|reader| record:", record)
-		domains <- record
+
+		arr := record
+		h := sha1.New()
+		h.Write([]byte(arr[hashPosition]))
+		sha1_hash := hex.EncodeToString(h.Sum(nil))
+		arr[hashPosition] = sha1_hash
+		log.Println("|new record| ->", arr)
+
+		length++
+
+		domains <- arr
 	}
 }
 
 func write(file *os.File, w *csv.Writer, results chan []string, headers []string) {
 	defer file.Close()
 
-	wr := &SyncWriter{sync.Mutex{}, *w}
 	wg := sync.WaitGroup{}
-
+	wr := &SyncWriter{sync.Mutex{}, *w}
 	wr.Write(headers)
 	wr.Writer.Flush()
-	// fmt.Fprintln(wr, headers)
-	// fmt.Fprintln()
 
 	for result := range results {
 		log.Println("|result| -> ", result)
 
 		wg.Add(1)
-		go func(r []string) {
-			log.Println("|r| -> ", r)
-			wr.Write(r)
-			// w.Write(r)
-			wr.Writer.Flush()
-			// fmt.Fprintln(wr, r)
-			wg.Done()
-		}(result)
+		// go func(r []string) {
+		// 	log.Println("|r| -> ", r)
+		// 	wr.Write(r)
+		// 	// w.Write(r)
+		// 	wr.Writer.Flush()
+		// 	// fmt.Fprintln(wr, r)
+		// 	wg.Done()
+		// }(result)
 	}
+
 	wg.Wait()
 }

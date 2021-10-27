@@ -4,7 +4,7 @@
 ----------------------------------------------------------------
 ### How to run 
 > go run . [filename.csv] [new_filename.csv] [hash_field]  
-exmaple:  
+example:  
 go run . example.csv new.csv 3  
 
 ----------------------------------------------------------------
@@ -15,5 +15,3 @@ Useful:
 3. [go and csv](https://zetcode.com/golang/csv/)
 4. 
 ----------------------------------------------------------------
-### how to use:
-todo...
