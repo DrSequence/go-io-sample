@@ -5,7 +5,6 @@ import (
 	"crypto/sha1"
 	"encoding/csv"
 	"encoding/hex"
-	"fmt"
 	"io"
 	"log"
 	"os"
@@ -18,16 +17,18 @@ var hashPosition = 0
 var comma = ';'
 var comment = '#'
 var concurrency = 500
+var csvFile = "example.csv"
+var newFile = "new.csv"
 
 type SyncWriter struct {
 	m      sync.Mutex
-	Writer io.Writer
+	Writer csv.Writer
 }
 
-func (w *SyncWriter) Write(b []byte) (n int, err error) {
+func (w *SyncWriter) Write(b []string) (n []string, err error) {
 	w.m.Lock()
 	defer w.m.Unlock()
-	return w.Writer.Write(b)
+	return nil, w.Writer.Write(b)
 }
 
 func init() {
@@ -39,6 +40,9 @@ func init() {
 	if err != nil {
 		log.Fatalln(err)
 	}
+
+	csvFile = os.Args[1]
+	newFile = os.Args[2]
 }
 
 func recalculate(records <-chan []string, wg *sync.WaitGroup, results chan []string) {
@@ -59,27 +63,25 @@ func main() {
 	domains := make(chan []string, 1000)
 	results := make(chan []string, 1000)
 
-	log.Println("filename:", os.Args[1])
-	csvFile, err := os.Open(os.Args[1])
+	log.Println("filename:", csvFile)
+	csvFile, err := os.Open(csvFile)
 	if err != nil {
 		log.Fatalln("Couldn't open the csv file", err)
 	}
 
 	log.Println("creating result file...")
-	resultFile, err := os.OpenFile(os.Args[2], os.O_APPEND|os.O_RDWR|os.O_CREATE, 0777)
+	resultFile, err := os.OpenFile(newFile, os.O_APPEND|os.O_RDWR|os.O_CREATE, 0777)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	defer csvFile.Close()
-
 	log.Println("copy headers...")
 	// copy headers from csv to new file
 	r := csv.NewReader(bufio.NewReader(csvFile))
-
-	// comma and comment settings
+	w := csv.NewWriter(bufio.NewWriter(resultFile))
 	r.Comma = comma
 	r.Comment = comment
+	w.Comma = comma
 
 	// read header
 	var headers []string
@@ -88,7 +90,7 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	go read(r, domains)
+	go read(r, csvFile, domains)
 
 	wg := new(sync.WaitGroup)
 	wg.Add(concurrency)
@@ -97,13 +99,18 @@ func main() {
 		go recalculate(domains, wg, results)
 	}
 
-	go write(resultFile, results, wg, headers)
+	go write(resultFile, w, results, headers)
 
-	// wg.Wait()
+	wg.Wait()
 	close(results)
+	for {
+
+	}
 }
 
-func read(r *csv.Reader, domains chan []string) {
+func read(r *csv.Reader, file *os.File, domains chan []string) {
+	defer file.Close()
+
 	for {
 		// Read each record from csv
 		record, err := r.Read()
@@ -120,11 +127,16 @@ func read(r *csv.Reader, domains chan []string) {
 	}
 }
 
-func write(file *os.File, results chan []string, wg *sync.WaitGroup, headers []string) {
+func write(file *os.File, w *csv.Writer, results chan []string, headers []string) {
 	defer file.Close()
 
-	wr := &SyncWriter{sync.Mutex{}, file}
-	// wg := sync.WaitGroup{}
+	wr := &SyncWriter{sync.Mutex{}, *w}
+	wg := sync.WaitGroup{}
+
+	wr.Write(headers)
+	wr.Writer.Flush()
+	// fmt.Fprintln(wr, headers)
+	// fmt.Fprintln()
 
 	for result := range results {
 		log.Println("|result| -> ", result)
@@ -132,11 +144,12 @@ func write(file *os.File, results chan []string, wg *sync.WaitGroup, headers []s
 		wg.Add(1)
 		go func(r []string) {
 			log.Println("|r| -> ", r)
-
-			fmt.Fprintln(wr, r)
+			wr.Write(r)
+			// w.Write(r)
+			wr.Writer.Flush()
+			// fmt.Fprintln(wr, r)
 			wg.Done()
 		}(result)
 	}
-
 	wg.Wait()
 }
