@@ -2,10 +2,10 @@ package main
 
 import (
 	"bufio"
-	"crypto/sha1"
 	"encoding/csv"
 	"encoding/hex"
 	"fmt"
+	"hash/crc32"
 	"io"
 	"log"
 	"os"
@@ -24,18 +24,25 @@ var newFile = "new.csv"
 var startTime time.Time
 
 type SyncWriter struct {
-	m      sync.Mutex
-	Writer io.Writer
+	m       sync.Mutex
+	oWriter io.Writer
 }
 
 func (w *SyncWriter) Write(b []byte) (n int, err error) {
 	w.m.Lock()
 	defer w.m.Unlock()
 
-	return w.Writer.Write(b)
+	return w.oWriter.Write(b)
 }
 
 func parse(strArray []string) string {
+
+	// bs := make([]byte, 32)
+	// bl := 0
+	// for n := 0; n < 32; n++ {
+	// 	bl += copy(bs[bl:], "x")
+	//     }
+
 	var sb strings.Builder
 	for i, r := range strArray {
 		if i != len(strArray)-1 {
@@ -53,25 +60,20 @@ func init() {
 	// Change the device for logging to stdout.
 	log.SetOutput(os.Stdout)
 
+	csvFile = os.Args[1]
+	newFile = os.Args[2]
 	var err error
 	hashPosition, err = strconv.Atoi(os.Args[3])
 	if err != nil {
 		log.Fatalln(err)
 	}
-
-	csvFile = os.Args[1]
-	newFile = os.Args[2]
 }
 
 func main() {
-	log.Println("starting...", time.Now())
+	log.Println("starting...")
 	dChannel := make(chan string, 1000)
 	var wgm sync.WaitGroup
 	termChan := make(chan bool)
-
-	// termChan := make(chan os.Signal)
-	// _, cancelFunc := context.WithCancel(context.Background())
-	// signal.Notify(termChan, syscall.SIGINT, syscall.SIGTERM)
 
 	log.Println("filename:", csvFile)
 	csvFile, err := os.Open(csvFile)
@@ -85,7 +87,6 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer resultFile.Close()
 
 	log.Println("copy headers...")
 	// copy headers from csv to new file
@@ -104,16 +105,14 @@ func main() {
 	go write(resultFile, dChannel, headers, &wgm, termChan)
 
 	<-termChan
-	log.Println("started:", startTime)
-	log.Println("end...", time.Now())
+	log.Println("ended.")
+	log.Println("total time:", time.Since(startTime))
 }
 
 func read(r *csv.Reader, dChannel chan string) {
 	defer close(dChannel)
 
-	log.Println("start reading...")
 	for {
-		// Read each record from csv
 		record, err := r.Read()
 		if err == io.EOF {
 			break
@@ -123,27 +122,29 @@ func read(r *csv.Reader, dChannel chan string) {
 			log.Fatal(err)
 		}
 
-		arr := record
-		h := sha1.New()
-		h.Write([]byte(arr[hashPosition]))
-		sha1_hash := hex.EncodeToString(h.Sum(nil))
-		arr[hashPosition] = sha1_hash
-		// log.Println("reader|new record| ->", arr)
+		var hasher string
+		hash := crc32.NewIEEE()
+		hashInBytes := hash.Sum(nil)[:]
+		hasher = hex.EncodeToString(hashInBytes)
+
+		record[hashPosition] = hasher
+		log.Println("reader|new record| ->", record)
 		dChannel <- parse(record)
 	}
 }
 
 func write(resultFile *os.File, dChannel chan string, headers []string, wg *sync.WaitGroup, termChan chan bool) {
-	// mutex
+	defer resultFile.Close()
+
 	wr := &SyncWriter{sync.Mutex{}, resultFile}
+
 	// write headers
 	fmt.Fprintln(wr, parse(headers))
-
 	for rec := range dChannel {
 		wg.Add(1)
 		go func(r string) {
 			defer wg.Done()
-			// log.Println("|r| -> ", r)
+			log.Println("|r| -> ", r)
 			fmt.Fprintln(wr, r)
 		}(rec)
 	}

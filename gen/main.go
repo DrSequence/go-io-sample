@@ -62,7 +62,7 @@ func RandateFloat() string {
 func main() {
 	amout, _ := strconv.Atoi(os.Args[1])
 	log.Println(fmt.Sprintf("starting generation file with %d fields", amout))
-	resultFile, err := os.OpenFile("large_example.csv", os.O_APPEND|os.O_RDWR|os.O_CREATE, 0777)
+	resultFile, err := os.OpenFile(os.Args[2], os.O_APPEND|os.O_RDWR|os.O_CREATE, 0777)
 	if err != nil {
 		log.Fatal(err)
 	}

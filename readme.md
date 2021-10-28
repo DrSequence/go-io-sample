@@ -6,8 +6,13 @@
 2) read a record and hash field  
 3) write to new file  
 ----------------------------------------------------------------
-### How to run 
-> insntall go 
+### How to run
+> install go
+> go run main.go 1kk.csv 1kk_ex.csv 1
+
+
+// TODO:
+> install go 
 > open yaml.file and modify if you need it  
 > (optional) move your file here  
 > go run .  
