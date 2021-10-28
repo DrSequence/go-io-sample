@@ -22,9 +22,7 @@ var comment = '#'
 var csvFile = "example.csv"
 var newFile = "new.csv"
 
-var concurrency = 500
-
-var wg sync.WaitGroup
+// var wg sync.WaitGroup
 
 type SyncWriter struct {
 	m      sync.Mutex
@@ -62,14 +60,49 @@ func init() {
 
 	csvFile = os.Args[1]
 	newFile = os.Args[2]
-	wg.Add(concurrency)
+	// wg.Add(concurrency)
+}
+
+func __main() {
+	dChannel := make(chan string, 100)
+	finished := make(chan bool)
+	var wgm sync.WaitGroup
+
+	go func() {
+		for i := 0; i < 1000; i++ {
+			str := fmt.Sprintf("string with id:%d", i)
+			log.Println("write ->", str)
+			dChannel <- str
+		}
+		close(dChannel)
+	}()
+
+	go func() {
+		for rec := range dChannel {
+			wgm.Add(1)
+			log.Println("|r| -> ", rec)
+			wgm.Done()
+
+			// go func(r string) {
+			// 	defer wgm.Done()
+			// 	log.Println("|r| -> ", r)
+			// }(rec)
+		}
+		finished <- true
+		wgm.Wait()
+	}()
+
+	<-finished
+	log.Println("end...")
 }
 
 func main() {
 	log.Println("starting...", time.Now())
 	dChannel := make(chan string, 1000)
+	var wgm sync.WaitGroup
+	termChan := make(chan bool)
 
-	termChan := make(chan os.Signal)
+	// termChan := make(chan os.Signal)
 	// _, cancelFunc := context.WithCancel(context.Background())
 	// signal.Notify(termChan, syscall.SIGINT, syscall.SIGTERM)
 
@@ -78,7 +111,6 @@ func main() {
 	if err != nil {
 		log.Fatalln("Couldn't open the csv file", err)
 	}
-
 	defer csvFile.Close()
 
 	log.Println("creating result file...")
@@ -91,10 +123,8 @@ func main() {
 	log.Println("copy headers...")
 	// copy headers from csv to new file
 	r := csv.NewReader(bufio.NewReader(csvFile))
-	w := csv.NewWriter(bufio.NewWriter(resultFile))
 	r.Comma = comma
 	r.Comment = comment
-	w.Comma = comma
 
 	// read header
 	var headers []string
@@ -104,15 +134,15 @@ func main() {
 	}
 
 	go read(r, dChannel)
-	go write(resultFile, dChannel, headers)
+	go write(resultFile, dChannel, headers, &wgm, termChan)
 
 	<-termChan
-	wg.Wait()
+	// wgm.Wait()
 	log.Println("end...")
 }
 
 func read(r *csv.Reader, dChannel chan string) {
-	defer close(dChannel)
+	// defer close(dChannel)
 
 	log.Println("start reading...")
 	for {
@@ -135,10 +165,11 @@ func read(r *csv.Reader, dChannel chan string) {
 		dChannel <- parse(record)
 	}
 
+	close(dChannel)
 	log.Println("end if reading...")
 }
 
-func write(resultFile *os.File, dChannel chan string, headers []string) {
+func write(resultFile *os.File, dChannel chan string, headers []string, wg *sync.WaitGroup, termChan chan bool) {
 	// mutex
 	wr := &SyncWriter{sync.Mutex{}, resultFile}
 	// write headers
@@ -152,4 +183,6 @@ func write(resultFile *os.File, dChannel chan string, headers []string) {
 			fmt.Fprintln(wr, r)
 		}(rec)
 	}
+	wg.Wait()
+	termChan <- true
 }

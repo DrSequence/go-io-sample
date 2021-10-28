@@ -1,0 +1,4 @@
+file:
+  input: example.csv
+  output: 1xample.csv
+  hash: 3

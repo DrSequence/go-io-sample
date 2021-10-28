@@ -1,0 +1,6 @@
+package config
+
+func InitConfig() (map map{}) {
+	// todo
+
+}
