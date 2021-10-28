@@ -15,11 +15,13 @@ func main() {
 
 	defer resultFile.Close()
 
+	// todo: use wtitter...
 	w := csv.NewWriter(bufio.NewWriter(resultFile))
 	w.Comma = ';'
 
 	// id;name;descr;secret
 	header := [4]string{"id", "name", "descr", "secret"}
+
 	w.Write(header)
 	w.Flush()
 
