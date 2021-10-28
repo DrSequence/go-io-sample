@@ -2,74 +2,85 @@ package main
 
 import (
 	"bufio"
-	"crypto/sha1"
 	"encoding/csv"
 	"encoding/hex"
+	"fmt"
+	"hash/crc32"
 	"io"
 	"log"
 	"os"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 )
 
 var hashPosition = 0
+
 var comma = ';'
 var comment = '#'
-var concurrency = 5
 var csvFile = "example.csv"
 var newFile = "new.csv"
-var length = 0
+var startTime time.Time
 
 type SyncWriter struct {
-	m      sync.Mutex
-	Writer csv.Writer
+	m       sync.Mutex
+	oWriter io.Writer
 }
 
-func (w *SyncWriter) Write(b []string) (n []string, err error) {
+func (w *SyncWriter) Write(b []byte) (n int, err error) {
 	w.m.Lock()
 	defer w.m.Unlock()
-	return nil, w.Writer.Write(b)
+
+	return w.oWriter.Write(b)
+}
+
+func parse(strArray []string) string {
+
+	// bs := make([]byte, 32)
+	// bl := 0
+	// for n := 0; n < 32; n++ {
+	// 	bl += copy(bs[bl:], "x")
+	//     }
+
+	var sb strings.Builder
+	for i, r := range strArray {
+		if i != len(strArray)-1 {
+			sb.WriteString(r + ";")
+		} else {
+			sb.WriteString(r)
+		}
+	}
+	return sb.String()
 }
 
 func init() {
+	startTime = time.Now()
+
 	// Change the device for logging to stdout.
 	log.SetOutput(os.Stdout)
 
+	csvFile = os.Args[1]
+	newFile = os.Args[2]
 	var err error
 	hashPosition, err = strconv.Atoi(os.Args[3])
 	if err != nil {
 		log.Fatalln(err)
 	}
-
-	csvFile = os.Args[1]
-	newFile = os.Args[2]
-}
-
-func recalculate(records <-chan []string, wg *sync.WaitGroup, results chan []string) {
-	defer wg.Done()
-	for record := range records {
-		arr := record
-		h := sha1.New()
-		h.Write([]byte(arr[hashPosition]))
-		sha1_hash := hex.EncodeToString(h.Sum(nil))
-		arr[hashPosition] = sha1_hash
-		log.Println("|new record| ->", arr)
-		results <- arr
-	}
 }
 
 func main() {
-	log.Println("starting...", time.Now())
-	domainsChanel := make(chan []string, 1)
-	resultsChanel := make(chan []string, 1)
+	log.Println("starting...")
+	dChannel := make(chan string, 1000)
+	var wgm sync.WaitGroup
+	termChan := make(chan bool)
 
 	log.Println("filename:", csvFile)
 	csvFile, err := os.Open(csvFile)
 	if err != nil {
 		log.Fatalln("Couldn't open the csv file", err)
 	}
-	log.Println("length:", csvFile)
+	defer csvFile.Close()
 
 	log.Println("creating result file...")
 	resultFile, err := os.OpenFile(newFile, os.O_APPEND|os.O_RDWR|os.O_CREATE, 0777)
@@ -80,10 +91,8 @@ func main() {
 	log.Println("copy headers...")
 	// copy headers from csv to new file
 	r := csv.NewReader(bufio.NewReader(csvFile))
-	w := csv.NewWriter(bufio.NewWriter(resultFile))
 	r.Comma = comma
 	r.Comment = comment
-	w.Comma = comma
 
 	// read header
 	var headers []string
@@ -92,76 +101,53 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	go read(r, csvFile, domainsChanel)
+	go read(r, dChannel)
+	go write(resultFile, dChannel, headers, &wgm, termChan)
 
-	wg := new(sync.WaitGroup)
-	wg.Add(concurrency)
-
-	for i := 0; i < concurrency; i++ {
-		go recalculate(domainsChanel, wg, resultsChanel)
-	}
-
-	go write(resultFile, w, resultsChanel, headers)
-
-	wg.Wait()
-	close(resultsChanel)
-
-	// TODO: last problem here:
-	// for {
-	// 	log.Println("le:", length)
-	// }
+	<-termChan
+	log.Println("ended.")
+	log.Println("total time:", time.Since(startTime))
 }
 
-func read(r *csv.Reader, file *os.File, domains chan []string) {
-	defer file.Close()
+func read(r *csv.Reader, dChannel chan string) {
+	defer close(dChannel)
 
 	for {
-		// Read each record from csv
 		record, err := r.Read()
 		if err == io.EOF {
-			close(domains)
 			break
 		}
 		if err != nil {
-			close(domains)
+			close(dChannel)
 			log.Fatal(err)
 		}
-		log.Println("|reader| record:", record)
 
-		arr := record
-		h := sha1.New()
-		h.Write([]byte(arr[hashPosition]))
-		sha1_hash := hex.EncodeToString(h.Sum(nil))
-		arr[hashPosition] = sha1_hash
-		log.Println("|new record| ->", arr)
+		var hasher string
+		hash := crc32.NewIEEE()
+		hashInBytes := hash.Sum(nil)[:]
+		hasher = hex.EncodeToString(hashInBytes)
 
-		length++
-
-		domains <- arr
+		record[hashPosition] = hasher
+		log.Println("reader|new record| ->", record)
+		dChannel <- parse(record)
 	}
 }
 
-func write(file *os.File, w *csv.Writer, results chan []string, headers []string) {
-	defer file.Close()
+func write(resultFile *os.File, dChannel chan string, headers []string, wg *sync.WaitGroup, termChan chan bool) {
+	defer resultFile.Close()
 
-	wg := sync.WaitGroup{}
-	wr := &SyncWriter{sync.Mutex{}, *w}
-	wr.Write(headers)
-	wr.Writer.Flush()
+	wr := &SyncWriter{sync.Mutex{}, resultFile}
 
-	for result := range results {
-		log.Println("|result| -> ", result)
-
+	// write headers
+	fmt.Fprintln(wr, parse(headers))
+	for rec := range dChannel {
 		wg.Add(1)
-		// go func(r []string) {
-		// 	log.Println("|r| -> ", r)
-		// 	wr.Write(r)
-		// 	// w.Write(r)
-		// 	wr.Writer.Flush()
-		// 	// fmt.Fprintln(wr, r)
-		// 	wg.Done()
-		// }(result)
+		go func(r string) {
+			defer wg.Done()
+			log.Println("|r| -> ", r)
+			fmt.Fprintln(wr, r)
+		}(rec)
 	}
-
 	wg.Wait()
+	termChan <- true
 }
