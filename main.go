@@ -21,8 +21,7 @@ var comma = ';'
 var comment = '#'
 var csvFile = "example.csv"
 var newFile = "new.csv"
-
-// var wg sync.WaitGroup
+var startTime time.Time
 
 type SyncWriter struct {
 	m      sync.Mutex
@@ -49,6 +48,8 @@ func parse(strArray []string) string {
 }
 
 func init() {
+	startTime = time.Now()
+
 	// Change the device for logging to stdout.
 	log.SetOutput(os.Stdout)
 
@@ -60,40 +61,6 @@ func init() {
 
 	csvFile = os.Args[1]
 	newFile = os.Args[2]
-	// wg.Add(concurrency)
-}
-
-func __main() {
-	dChannel := make(chan string, 100)
-	finished := make(chan bool)
-	var wgm sync.WaitGroup
-
-	go func() {
-		for i := 0; i < 1000; i++ {
-			str := fmt.Sprintf("string with id:%d", i)
-			log.Println("write ->", str)
-			dChannel <- str
-		}
-		close(dChannel)
-	}()
-
-	go func() {
-		for rec := range dChannel {
-			wgm.Add(1)
-			log.Println("|r| -> ", rec)
-			wgm.Done()
-
-			// go func(r string) {
-			// 	defer wgm.Done()
-			// 	log.Println("|r| -> ", r)
-			// }(rec)
-		}
-		finished <- true
-		wgm.Wait()
-	}()
-
-	<-finished
-	log.Println("end...")
 }
 
 func main() {
@@ -137,12 +104,12 @@ func main() {
 	go write(resultFile, dChannel, headers, &wgm, termChan)
 
 	<-termChan
-	// wgm.Wait()
-	log.Println("end...")
+	log.Println("started:", startTime)
+	log.Println("end...", time.Now())
 }
 
 func read(r *csv.Reader, dChannel chan string) {
-	// defer close(dChannel)
+	defer close(dChannel)
 
 	log.Println("start reading...")
 	for {
@@ -161,12 +128,9 @@ func read(r *csv.Reader, dChannel chan string) {
 		h.Write([]byte(arr[hashPosition]))
 		sha1_hash := hex.EncodeToString(h.Sum(nil))
 		arr[hashPosition] = sha1_hash
-		log.Println("reader|new record| ->", arr)
+		// log.Println("reader|new record| ->", arr)
 		dChannel <- parse(record)
 	}
-
-	close(dChannel)
-	log.Println("end if reading...")
 }
 
 func write(resultFile *os.File, dChannel chan string, headers []string, wg *sync.WaitGroup, termChan chan bool) {
@@ -179,7 +143,7 @@ func write(resultFile *os.File, dChannel chan string, headers []string, wg *sync
 		wg.Add(1)
 		go func(r string) {
 			defer wg.Done()
-			log.Println("|r| -> ", r)
+			// log.Println("|r| -> ", r)
 			fmt.Fprintln(wr, r)
 		}(rec)
 	}
