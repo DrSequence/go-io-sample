@@ -10,6 +10,7 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 )
@@ -22,6 +23,7 @@ var csvFile = "example.csv"
 var newFile = "new.csv"
 
 var concurrency = 500
+
 var wg sync.WaitGroup
 
 type SyncWriter struct {
@@ -37,16 +39,15 @@ func (w *SyncWriter) Write(b []byte) (n int, err error) {
 }
 
 func parse(strArray []string) string {
-	// TODO: refactoring and find more fast operation
-	var resultString = ""
+	var sb strings.Builder
 	for i, r := range strArray {
 		if i != len(strArray)-1 {
-			resultString += r + ";"
+			sb.WriteString(r + ";")
 		} else {
-			resultString += r
+			sb.WriteString(r)
 		}
 	}
-	return resultString
+	return sb.String()
 }
 
 func init() {
@@ -61,15 +62,16 @@ func init() {
 
 	csvFile = os.Args[1]
 	newFile = os.Args[2]
-
 	wg.Add(concurrency)
 }
 
 func main() {
 	log.Println("starting...", time.Now())
 	dChannel := make(chan string, 1000)
-	// todo....
-	// shotdownChannel := make(chan string, 1)
+
+	termChan := make(chan os.Signal)
+	// _, cancelFunc := context.WithCancel(context.Background())
+	// signal.Notify(termChan, syscall.SIGINT, syscall.SIGTERM)
 
 	log.Println("filename:", csvFile)
 	csvFile, err := os.Open(csvFile)
@@ -104,18 +106,19 @@ func main() {
 	go read(r, dChannel)
 	go write(resultFile, dChannel, headers)
 
+	<-termChan
 	wg.Wait()
-	close(dChannel)
-
 	log.Println("end...")
 }
 
 func read(r *csv.Reader, dChannel chan string) {
+	defer close(dChannel)
+
+	log.Println("start reading...")
 	for {
 		// Read each record from csv
 		record, err := r.Read()
 		if err == io.EOF {
-			close(dChannel)
 			break
 		}
 		if err != nil {
@@ -129,9 +132,10 @@ func read(r *csv.Reader, dChannel chan string) {
 		sha1_hash := hex.EncodeToString(h.Sum(nil))
 		arr[hashPosition] = sha1_hash
 		log.Println("reader|new record| ->", arr)
-
 		dChannel <- parse(record)
 	}
+
+	log.Println("end if reading...")
 }
 
 func write(resultFile *os.File, dChannel chan string, headers []string) {
@@ -139,12 +143,13 @@ func write(resultFile *os.File, dChannel chan string, headers []string) {
 	wr := &SyncWriter{sync.Mutex{}, resultFile}
 	// write headers
 	fmt.Fprintln(wr, parse(headers))
+
 	for rec := range dChannel {
 		wg.Add(1)
 		go func(r string) {
+			defer wg.Done()
 			log.Println("|r| -> ", r)
 			fmt.Fprintln(wr, r)
-			defer wg.Done()
 		}(rec)
 	}
 }
