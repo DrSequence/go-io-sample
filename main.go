@@ -15,11 +15,13 @@ import (
 )
 
 var hashPosition = 0
+
 var comma = ';'
 var comment = '#'
-var concurrency = 500
 var csvFile = "example.csv"
 var newFile = "new.csv"
+
+var concurrency = 500
 var wg sync.WaitGroup
 
 type SyncWriter struct {
@@ -35,6 +37,7 @@ func (w *SyncWriter) Write(b []byte) (n int, err error) {
 }
 
 func parse(strArray []string) string {
+	// TODO: refactoring and find more fast operation
 	var resultString = ""
 	for i, r := range strArray {
 		if i != len(strArray)-1 {
@@ -59,13 +62,12 @@ func init() {
 	csvFile = os.Args[1]
 	newFile = os.Args[2]
 
-	// add concurrency
 	wg.Add(concurrency)
 }
 
 func main() {
 	log.Println("starting...", time.Now())
-	domainsChanel := make(chan string, 1)
+	dChannel := make(chan string, 1000)
 	// todo....
 	// shotdownChannel := make(chan string, 1)
 
@@ -74,6 +76,8 @@ func main() {
 	if err != nil {
 		log.Fatalln("Couldn't open the csv file", err)
 	}
+
+	defer csvFile.Close()
 
 	log.Println("creating result file...")
 	resultFile, err := os.OpenFile(newFile, os.O_APPEND|os.O_RDWR|os.O_CREATE, 0777)
@@ -97,49 +101,50 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	// read fields and push to channel
-	go read(r, csvFile, domainsChanel)
-
-	// mutex
-	wr := &SyncWriter{sync.Mutex{}, resultFile}
-	// write headers
-	fmt.Fprintln(wr, parse(headers))
-	for rec := range domainsChanel {
-		wg.Add(1)
-		go func(r string) {
-			log.Println("|r| -> ", r)
-			fmt.Fprintln(wr, r)
-			defer wg.Done()
-		}(rec)
-	}
+	go read(r, dChannel)
+	go write(resultFile, dChannel, headers)
 
 	wg.Wait()
-	close(domainsChanel)
+	close(dChannel)
+
 	log.Println("end...")
 }
 
-func read(r *csv.Reader, file *os.File, domains chan string) {
-	defer file.Close()
-
+func read(r *csv.Reader, dChannel chan string) {
 	for {
 		// Read each record from csv
 		record, err := r.Read()
 		if err == io.EOF {
+			close(dChannel)
 			break
 		}
 		if err != nil {
-			close(domains)
+			close(dChannel)
 			log.Fatal(err)
 		}
-		log.Println("|reader| record:", record)
 
 		arr := record
 		h := sha1.New()
 		h.Write([]byte(arr[hashPosition]))
 		sha1_hash := hex.EncodeToString(h.Sum(nil))
 		arr[hashPosition] = sha1_hash
-		log.Println("|new record| ->", arr)
+		log.Println("reader|new record| ->", arr)
 
-		domains <- parse(record)
+		dChannel <- parse(record)
+	}
+}
+
+func write(resultFile *os.File, dChannel chan string, headers []string) {
+	// mutex
+	wr := &SyncWriter{sync.Mutex{}, resultFile}
+	// write headers
+	fmt.Fprintln(wr, parse(headers))
+	for rec := range dChannel {
+		wg.Add(1)
+		go func(r string) {
+			log.Println("|r| -> ", r)
+			fmt.Fprintln(wr, r)
+			defer wg.Done()
+		}(rec)
 	}
 }
