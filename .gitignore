@@ -1,2 +1,3 @@
 *.csv
 /cvs
+cmd/v3/.*

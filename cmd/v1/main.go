@@ -64,7 +64,7 @@ func init() {
 
 func main() {
 	log.Println("starting...")
-	dChannel := make(chan string, 1000)
+	dChannel := make(chan string, 1024*64)
 	var wgm sync.WaitGroup
 	termChan := make(chan bool)
 
