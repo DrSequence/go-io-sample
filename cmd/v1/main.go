@@ -36,13 +36,6 @@ func (w *SyncWriter) Write(b []byte) (n int, err error) {
 }
 
 func parse(strArray []string) string {
-
-	// bs := make([]byte, 32)
-	// bl := 0
-	// for n := 0; n < 32; n++ {
-	// 	bl += copy(bs[bl:], "x")
-	//     }
-
 	var sb strings.Builder
 	for i, r := range strArray {
 		if i != len(strArray)-1 {
