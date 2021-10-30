@@ -6,9 +6,6 @@ main:
 read huge file, hex substring, write to new file.  
 
 cmd/v2 version can read and write use ony one file.
-1) read csv 
-2) read a record and hash field  
-3) write to new file  
 ----------------------------------------------------------------
 ### How to run
 > install go
