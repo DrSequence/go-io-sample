@@ -1,4 +1,4 @@
-## IO cvs sample
+## IO cvs reader sample
 ### version 0.0.1-SNAPSHOT
 
 ### Goals:  
