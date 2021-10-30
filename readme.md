@@ -1,4 +1,4 @@
-## IO cvs reader sample
+## IO csv reader sample
 ### version 0.0.1-SNAPSHOT
 
 ### Goals:  
@@ -6,6 +6,15 @@ main:
 read huge file, hex substring, write to new file.  
 
 cmd/v2 version can read and write use ony one file.
+
+
+special version:  
+v2 version has hardcode with position for phone number which I need to hash (string to hex). It's snapshot version. 
+todo list:  
+1) position with yaml 
+2) find position and ask an user about it
+
+
 ----------------------------------------------------------------
 ### How to run
 > install go
@@ -24,8 +33,8 @@ cmd/v2 version can read and write use ony one file.
 ----------------------------------------------------------------
 
 Useful:
-1. [read cvs](https://ankurraina.medium.com/reading-a-simple-csv-in-go-36d7a269cecd)
-2. [read with gorutines (RUS)](https://golangify.com/writing-file-multiple-goroutines)
+1. [reading cvs](https://ankurraina.medium.com/reading-a-simple-csv-in-go-36d7a269cecd)
+2. [reading with gorutines (RUS)](https://golangify.com/writing-file-multiple-goroutines)
 3. [go and csv](https://zetcode.com/golang/csv/)
 4. [workers](https://goinbigdata.com/golang-wait-for-all-goroutines-to-finish/) 
 5. [random](https://gobyexample.com/random-numbers)   

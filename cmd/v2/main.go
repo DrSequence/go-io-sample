@@ -20,7 +20,7 @@ const (
 )
 
 func changeData(data string) string {
-	log.Println("record", data)
+	// log.Println("record", data)
 	if !isHeaderRead {
 		isHeaderRead = true
 		return data
@@ -32,7 +32,7 @@ func changeData(data string) string {
 			table := crc32.MakeTable(crc32.IEEE)
 			checksum := crc32.Checksum([]byte(number), table)
 
-			resultString := strings.Replace(data, number, string(checksum), 1)
+			resultString := strings.Replace(data, number, fmt.Sprintf("%02x", checksum), 1)
 			// log.Println("result ->>:", resultString)
 			return resultString
 		} else {
