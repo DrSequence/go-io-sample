@@ -8,10 +8,6 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-var hashPosition = 0
-var csvFile = "example.csv"
-var newFile = "new.csv"
-
 type Config struct {
 	input    string `yaml:"input"`
 	output   string `yaml:"output"`

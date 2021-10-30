@@ -29,15 +29,15 @@ func RandateTime() string {
 }
 
 func RandateNumber() string {
-	max := 70000000000
-	min := 80000000000
-	val := rand.Intn((max - min) + min)
+	min := 79000000000
+	max := 79999999999
+	val := rand.Intn(max-min) + min
 	return strconv.Itoa(val)
 }
 
 func RandateSN() string {
-	max := 1000000000
-	min := 9999999999
+	min := 1000000000
+	max := 9999999999
 	val := rand.Intn((max - min) + min)
 	return strconv.Itoa(val)
 }
@@ -60,7 +60,10 @@ func RandateFloat() string {
 }
 
 func main() {
-	amout, _ := strconv.Atoi(os.Args[1])
+	amout, err := strconv.Atoi(os.Args[1])
+	if err != nil {
+		log.Fatal("first pararm is amount of fields. not found", err)
+	}
 	log.Println(fmt.Sprintf("starting generation file with %d fields", amout))
 	resultFile, err := os.OpenFile(os.Args[2], os.O_APPEND|os.O_RDWR|os.O_CREATE, 0777)
 	if err != nil {
