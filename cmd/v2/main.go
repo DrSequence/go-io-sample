@@ -33,7 +33,7 @@ func changeData(data string) string {
 			checksum := crc32.Checksum([]byte(number), table)
 
 			resultString := strings.Replace(data, number, string(checksum), 1)
-			log.Println("result ->>:", resultString)
+			// log.Println("result ->>:", resultString)
 			return resultString
 		} else {
 			return data
@@ -48,14 +48,14 @@ func main() {
 	inFile, _ := os.Open(filename)
 	defer inFile.Close()
 
-	outFile, _ := os.OpenFile("f"+filename, os.O_RDWR, 0777)
+	outFile, _ := os.OpenFile(filename, os.O_RDWR, 0777)
 	defer outFile.Close()
 
 	reader := bufio.NewReaderSize(inFile, 1024)
 
 	for {
 		line, err := reader.ReadString('\n')
-		log.Println("|readliner|line|:", line)
+		// log.Println("|readliner|line|:", line)
 		outFile.WriteString(changeData(line))
 		if err != nil {
 			if err != io.EOF {
