@@ -51,7 +51,7 @@ func RandateInt(size int) string {
 	}
 	end = start * 10
 
-	val := rand.Intn(start-end) + end
+	val := rand.Intn(end-start) + end
 	return strconv.Itoa(val)
 }
 

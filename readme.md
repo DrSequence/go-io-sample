@@ -4,11 +4,19 @@
 ### Goals:  
 main:
 read huge file, hex substring, write to new file.  
+repo has 2 version.
 
-cmd/v2 version can read and write use ony one file.
+v1 can read a file and write in a new file. 
+reading with goroutines.  
 
 
-special version:  
+### v2 version is a spical verion for customer.
+#### cmd/v2 version can read and write use ony one file.  
+if need to read file and create new use this:
+> go run cmd/v2/main.go csv/test.csv   
+if need to read and to write with the same file use: 
+> go run cmd/v2/main.go csv/test.csv o  
+
 v2 version has hardcode with position for phone number which I need to hash (string to hex). It's snapshot version. 
 todo list:  
 1) position with yaml 
