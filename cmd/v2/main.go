@@ -21,11 +21,12 @@ const (
 
 func DefineType(filename string) (file *os.File, err error) {
 	wType := os.Args[2]
+	log.Println("type of overwrite:", wType)
 	switch wType {
 	case "o":
 		return os.OpenFile(filename, os.O_RDWR, 0777)
 	default:
-		return os.Create("new" + filename)
+		return os.OpenFile("new_file.csv", os.O_APPEND|os.O_RDWR|os.O_CREATE, 0777)
 	}
 }
 
