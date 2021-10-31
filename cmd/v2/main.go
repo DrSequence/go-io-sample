@@ -30,7 +30,7 @@ func DefineType(filename string) (file *os.File, err error) {
 	}
 }
 
-func changeData(data string) string {
+func ChangeData(data string) string {
 	// log.Println("record", data)
 	if !isHeaderRead {
 		isHeaderRead = true
@@ -74,7 +74,7 @@ func main() {
 	for {
 		line, err := reader.ReadString('\n')
 		// log.Println("|readliner|line|:", line)
-		outFile.WriteString(changeData(line))
+		outFile.WriteString(ChangeData(line))
 		if err != nil {
 			if err != io.EOF {
 				fmt.Println("error:", err)

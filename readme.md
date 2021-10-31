@@ -13,7 +13,7 @@ reading with goroutines.
 ### v2 version is a spical verion for customer.
 #### cmd/v2 version can read and write use ony one file.  
 if need to read file and create new use this:
-> go run cmd/v2/main.go csv/test.csv   
+> go run cmd/v2/main.go csv/test.csv n  
 if need to read and to write with the same file use: 
 > go run cmd/v2/main.go csv/test.csv o  
 
