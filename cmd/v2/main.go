@@ -19,6 +19,16 @@ const (
 	lenghtOfNumber = 12
 )
 
+func DefineType(filename string) (file *os.File, err error) {
+	wType := os.Args[2]
+	switch wType {
+	case "o":
+		return os.OpenFile(filename, os.O_RDWR, 0777)
+	default:
+		return os.Create("new" + filename)
+	}
+}
+
 func changeData(data string) string {
 	// log.Println("record", data)
 	if !isHeaderRead {
@@ -45,10 +55,17 @@ func main() {
 	filename := os.Args[1]
 	start := time.Now()
 	log.Println("starting read/write...")
-	inFile, _ := os.Open(filename)
+	inFile, err := os.Open(filename)
+	if err != nil {
+		log.Fatal("Cannot open file!")
+	}
+
 	defer inFile.Close()
 
-	outFile, _ := os.OpenFile(filename, os.O_RDWR, 0777)
+	outFile, err := DefineType(filename)
+	if err != nil {
+		log.Fatal("Cannot open file for writing!", err)
+	}
 	defer outFile.Close()
 
 	reader := bufio.NewReaderSize(inFile, 1024)
