@@ -40,4 +40,5 @@ Useful:
 5. [random](https://gobyexample.com/random-numbers)   
 6. [gorutines](https://www.golangprograms.com/goroutines.html)
 7. [fast reader with goroutines](https://medium.com/swlh/processing-16gb-file-in-seconds-go-lang-3982c235dfa2)
+8. [fast way to concat srtings](https://yourbasic.org/golang/build-append-concatenate-strings-efficiently/)
 ----------------------------------------------------------------
