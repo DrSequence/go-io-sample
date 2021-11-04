@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"hash/crc32"
 	"io"
 	"log"
 	"math"
@@ -26,6 +27,12 @@ type ProcessPool struct {
 }
 
 var config FilesConfig
+
+const (
+	separator      = ";"
+	position       = 1
+	lenghtOfNumber = 12
+)
 
 func main() {
 	startTime := time.Now()
@@ -53,6 +60,8 @@ func main() {
 		log.Panicln("cannot able to read hex file", err)
 	}
 	defer hexFile.Close()
+
+	// READ headers in file!
 
 	config = FilesConfig{position, file, newFile, hexFile}
 	Read(config)
@@ -133,8 +142,8 @@ func ProcessChunk(chunk []byte, pp *ProcessPool, config *FilesConfig) {
 				if len(text) == 0 {
 					continue
 				}
-				logSlice := strings.SplitN(text, ";", 1)
-				ProcessRecord(logSlice, config)
+				ProcessRecord(text, config)
+
 			}
 
 		}(i*chunkSize, int(math.Min(float64((i+1)*chunkSize), float64(len(recordSlice)))))
@@ -144,25 +153,45 @@ func ProcessChunk(chunk []byte, pp *ProcessPool, config *FilesConfig) {
 	recordSlice = nil
 }
 
-func ProcessRecord(logSlice []string, config *FilesConfig) {
-	log.Println("record:", logSlice)
-	// TODO: prosses slice
-	// read to new file hex
-	// write to new file the result
+func ProcessRecord(text string, config *FilesConfig) {
+	log.Println("|processor|record:", text)
 
-}
+	i := strings.Index(text, separator)
+	if i != -1 || strings.Contains(text, "phone_number") {
 
-func WriteHexPair() {
-	log.Println("|hex| record:")
-	// todo
+		number := text[i+1 : i+lenghtOfNumber]
+		table := crc32.MakeTable(crc32.IEEE)
+		checksum := crc32.Checksum([]byte(number), table)
+		checkSumAsString := fmt.Sprintf("%02x", checksum)
+		resultString := strings.Replace(text, number, checkSumAsString, 1)
+
+		WriteHexPair(number, checkSumAsString, config)
+
+		Write(resultString, config)
+
+	} else {
+		Write(text, config)
+	}
+
+	// logSlice := strings.SplitN(text, ";", 1)
+	// Write(logSlice, config)
+	// number := logSlice[config.position]
+	// log.Println("number:", number)
+
 	// table := crc32.MakeTable(crc32.IEEE)
-	// 		checksum := crc32.Checksum([]byte(number), table)
+	// checksum := crc32.Checksum([]byte(number), table)
+	// logSlice[config.position] = fmt.Sprintf("%02x", checksum)
+	// // TODO: add write hex pair
 
-	// 		resultString := strings.Replace(data, number, fmt.Sprintf("%02x", checksum), 1)
-
+	// Write(logSlice, config)
 }
 
-func Write(logSlice []string) {
-	log.Println("|writter| record:", logSlice)
+func WriteHexPair(number string, hex string, config *FilesConfig) {
+	log.Println("|hex| record:")
+	config.hex.WriteString(number + ";" + hex + "\n") // fixme
+}
 
+func Write(logSlice string, config *FilesConfig) {
+	log.Println("|writter| record:", logSlice)
+	config.overwrite.WriteString(logSlice + "\n") //fixme
 }
