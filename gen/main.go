@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-var comma = ';'
+const comma = ';'
 
 func RandateTime() string {
 	min := time.Date(1970, 1, 0, 0, 0, 0, 0, time.UTC).Unix()
@@ -77,8 +77,8 @@ func main() {
 	w.Comma = comma
 
 	header := [6]string{
-		"data", "phone_number", "descr", "extra_field_here",
-		"prepare_new_field_1", "one_more_extra_field",
+		"data", "need_hash_field", "one_more_field", "one_more_field",
+		"one_more_field", "one_more_field",
 	}
 
 	w.Write(header[:])
