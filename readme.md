@@ -6,9 +6,12 @@ main:
 read huge file, hex substring, write to new file.  
 repo has 2 version.
 
-v1 can read a file and write in a new file. 
-reading with goroutines.  
+----------------------------------------------------------------
+### How to run
 
+### v1
+> install go
+> go run cmd/v1/main.go 1kk.csv 1kk_ex.csv 1
 
 ### v2 version is a spical verion for customer.
 #### cmd/v2 version can read and write use ony one file.  
@@ -22,22 +25,11 @@ todo list:
 1) position with yaml 
 2) find position and ask an user about it
 
+### v3 insert filename and position (phone number leght is const)
+> go run cmd/v3/main.go csv/lt.csv 2
 
-----------------------------------------------------------------
-### How to run
-> install go
-> go run main.go 1kk.csv 1kk_ex.csv 1
-
-
-// TODO:
-> install go 
-> open yaml.file and modify if you need it  
-> (optional) move your file here  
-> go run .  
-
-
-### file generator
->  go run ./gen/main.go 
+### file generator. insert amount of field and filename.
+>  go run ./gen/main.go 100000 t.csv
 ----------------------------------------------------------------
 
 Useful:

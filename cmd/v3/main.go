@@ -103,16 +103,17 @@ func Read(config FilesConfig) error {
 
 		wg.Add(1)
 		go func() {
-			ProcessChunk(buf, &pp, &config)
+			ProcessChunk(buf, &pp)
 			wg.Done()
 		}()
 	}
 
 	wg.Wait()
+	// endChan <- true
 	return nil
 }
 
-func ProcessChunk(chunk []byte, pp *ProcessPool, config *FilesConfig) {
+func ProcessChunk(chunk []byte, pp *ProcessPool) {
 	var wg2 sync.WaitGroup
 
 	record := pp.stringPool.Get().(string)
@@ -140,7 +141,7 @@ func ProcessChunk(chunk []byte, pp *ProcessPool, config *FilesConfig) {
 				if len(text) == 0 {
 					continue
 				}
-				ProcessRecord(text, config)
+				ProcessRecord(text)
 
 			}
 
@@ -151,7 +152,8 @@ func ProcessChunk(chunk []byte, pp *ProcessPool, config *FilesConfig) {
 	recordSlice = nil
 }
 
-func ProcessRecord(text string, config *FilesConfig) {
+func ProcessRecord(text string) {
+	// defer close(reChan)
 	i := strings.Index(text, separator)
 	var result []byte
 
@@ -162,20 +164,21 @@ func ProcessRecord(text string, config *FilesConfig) {
 		checkSumAsString := fmt.Sprintf("%02x", checksum)
 		resultString := strings.Replace(text, number, checkSumAsString, 1)
 		result = []byte(resultString)
-		WriteHexPair([]byte(number), checkSumAsString, config)
+
+		WriteHexPair([]byte(number), checkSumAsString)
 	}
 
-	Write(result, config)
+	Write([]byte(result))
 }
 
-func WriteHexPair(prerecord []byte, hex string, config *FilesConfig) {
-	prerecord = append(prerecord, bSeparator)
-	prerecord = append(prerecord, hex...)
-	prerecord = append(prerecord, '\n')
-	config.hex.Write(prerecord)
+func WriteHexPair(b []byte, checkSumAsString string) {
+	b = append(b, bSeparator)
+	b = append(b, checkSumAsString...)
+	b = append(b, '\n')
+	config.hex.Write(b)
 }
 
-func Write(prerecord []byte, config *FilesConfig) {
-	prerecord = append(prerecord, '\n')
-	config.overwrite.Write(prerecord)
+func Write(b []byte) {
+	b = append(b, '\n')
+	config.overwrite.Write(b)
 }
