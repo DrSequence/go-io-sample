@@ -1,5 +1,5 @@
 ## IO csv reader sample
-### version 0.0.1-SNAPSHOT
+### version 0.0.2
 
 ### Goals:  
 main:
@@ -47,4 +47,5 @@ Useful:
 4. [workers](https://goinbigdata.com/golang-wait-for-all-goroutines-to-finish/) 
 5. [random](https://gobyexample.com/random-numbers)   
 6. [gorutines](https://www.golangprograms.com/goroutines.html)
+7. [fast reader with goroutines](https://medium.com/swlh/processing-16gb-file-in-seconds-go-lang-3982c235dfa2)
 ----------------------------------------------------------------

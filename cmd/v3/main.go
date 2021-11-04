@@ -30,6 +30,7 @@ var config FilesConfig
 
 const (
 	separator      = ";"
+	bSeparator     = ';'
 	position       = 1
 	lenghtOfNumber = 12
 )
@@ -60,9 +61,6 @@ func main() {
 		log.Panicln("cannot able to read hex file", err)
 	}
 	defer hexFile.Close()
-
-	// READ headers in file!
-
 	config = FilesConfig{position, file, newFile, hexFile}
 	Read(config)
 
@@ -154,44 +152,30 @@ func ProcessChunk(chunk []byte, pp *ProcessPool, config *FilesConfig) {
 }
 
 func ProcessRecord(text string, config *FilesConfig) {
-	log.Println("|processor|record:", text)
-
 	i := strings.Index(text, separator)
-	if i != -1 || strings.Contains(text, "phone_number") {
+	var result []byte
 
+	if i != -1 {
 		number := text[i+1 : i+lenghtOfNumber]
 		table := crc32.MakeTable(crc32.IEEE)
 		checksum := crc32.Checksum([]byte(number), table)
 		checkSumAsString := fmt.Sprintf("%02x", checksum)
 		resultString := strings.Replace(text, number, checkSumAsString, 1)
-
-		WriteHexPair(number, checkSumAsString, config)
-
-		Write(resultString, config)
-
-	} else {
-		Write(text, config)
+		result = []byte(resultString)
+		WriteHexPair([]byte(number), checkSumAsString, config)
 	}
 
-	// logSlice := strings.SplitN(text, ";", 1)
-	// Write(logSlice, config)
-	// number := logSlice[config.position]
-	// log.Println("number:", number)
-
-	// table := crc32.MakeTable(crc32.IEEE)
-	// checksum := crc32.Checksum([]byte(number), table)
-	// logSlice[config.position] = fmt.Sprintf("%02x", checksum)
-	// // TODO: add write hex pair
-
-	// Write(logSlice, config)
+	Write(result, config)
 }
 
-func WriteHexPair(number string, hex string, config *FilesConfig) {
-	log.Println("|hex| record:")
-	config.hex.WriteString(number + ";" + hex + "\n") // fixme
+func WriteHexPair(prerecord []byte, hex string, config *FilesConfig) {
+	prerecord = append(prerecord, bSeparator)
+	prerecord = append(prerecord, hex...)
+	prerecord = append(prerecord, '\n')
+	config.hex.Write(prerecord)
 }
 
-func Write(logSlice string, config *FilesConfig) {
-	log.Println("|writter| record:", logSlice)
-	config.overwrite.WriteString(logSlice + "\n") //fixme
+func Write(prerecord []byte, config *FilesConfig) {
+	prerecord = append(prerecord, '\n')
+	config.overwrite.Write(prerecord)
 }
